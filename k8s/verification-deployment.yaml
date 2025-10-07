@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: verification-api-deployment
+  labels:
+    app: verification-api
+spec:
+  replicas: 2 # Example of scaling
+  selector:
+    matchLabels:
+      app: verification-api
+  template:
+    metadata:
+      labels:
+        app: verification-api
+    spec:
+      containers:
+      - name: verification-api
+        image: your-docker-hub-username/verification-api:latest # Replace with your actual image path
+        ports:
+        - containerPort: 5000
+        # Note: In a real-world scenario, you would need a PersistentVolume
+        # to share the SQLite database across pods.

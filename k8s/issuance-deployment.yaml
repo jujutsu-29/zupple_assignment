@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: issuance-api-deployment
+  labels:
+    app: issuance-api
+spec:
+  replicas: 2 # Example of scaling
+  selector:
+    matchLabels:
+      app: issuance-api
+  template:
+    metadata:
+      labels:
+        app: issuance-api
+    spec:
+      containers:
+      - name: issuance-api
+        image: your-docker-hub-username/issuance-api:latest # Replace with your actual image path
+        ports:
+        - containerPort: 4000
+        # Note: In a real-world scenario, you would need a PersistentVolume
+        # to share the SQLite database across pods.

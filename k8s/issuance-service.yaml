@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: issuance-api-service
+spec:
+  selector:
+    app: issuance-api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 4000
+  type: ClusterIP
