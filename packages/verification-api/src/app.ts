@@ -5,7 +5,7 @@ import path from 'path';
 const app = express();
 app.use(express.json());
 
-const CREDENTIALS_FILE = path.join(__dirname, '..', '..', 'credentials.json');
+const CREDENTIALS_FILE = '/var/data/credentials.json'; // Path on Render persistent disk
 
 // A simple CORS middleware
 app.use((req, res, next) => {
