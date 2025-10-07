@@ -1,9 +1,12 @@
 import express from 'express';
-import { openDb } from './database';
+import fs from 'fs/promises';
 import os from 'os';
+import path from 'path';
 
 const app = express();
 app.use(express.json());
+
+const CREDENTIALS_FILE = path.join(__dirname, '..', '..', 'credentials.json');
 
 // A simple CORS middleware
 app.use((req, res, next) => {
@@ -12,6 +15,30 @@ app.use((req, res, next) => {
     next();
 });
 
+interface CredentialRecord {
+  id: string;
+  credential: string;
+  workerId: string;
+  issuedAt: string;
+}
+
+const readCredentials = async (): Promise<CredentialRecord[]> => {
+  try {
+    const data = await fs.readFile(CREDENTIALS_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      // File not found, return empty array
+      return [];
+    }
+    throw error;
+  }
+};
+
+const writeCredentials = async (credentials: CredentialRecord[]) => {
+  await fs.writeFile(CREDENTIALS_FILE, JSON.stringify(credentials, null, 2), 'utf-8');
+};
+
 app.post('/issue', async (req, res) => {
   const { credential } = req.body;
 
@@ -19,29 +46,30 @@ app.post('/issue', async (req, res) => {
     return res.status(400).json({ message: 'Invalid credential format. It must be a JSON object with an id property.' });
   }
 
-  const db = await openDb();
-
   try {
-    const existing = await db.get('SELECT id FROM credentials WHERE id = ?', credential.id);
+    const credentials = await readCredentials();
+
+    const existing = credentials.find(c => c.id === credential.id);
 
     if (existing) {
       return res.status(409).json({ message: 'Credential already issued.' });
     }
 
     const workerId = `worker-${os.hostname()}`;
-    await db.run(
-      'INSERT INTO credentials (id, credential, workerId) VALUES (?, ?, ?)',
-      credential.id,
-      JSON.stringify(credential),
-      workerId
-    );
+    const newCredentialRecord: CredentialRecord = {
+      id: credential.id,
+      credential: JSON.stringify(credential),
+      workerId: workerId,
+      issuedAt: new Date().toISOString(),
+    };
+
+    credentials.push(newCredentialRecord);
+    await writeCredentials(credentials);
 
     res.status(201).json({ message: `Credential issued by ${workerId}` });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Internal server error' });
-  } finally {
-    await db.close();
   }
 });
 

@@ -132,3 +132,5 @@ credential.db
 
 # Build output
 dist/
+
+/generated/prisma

@@ -1,43 +1,45 @@
 import request from 'supertest';
 import app from './app';
-import { openDb } from './database';
+import fs from 'fs/promises';
+import path from 'path';
 
-// Mock the database module
-jest.mock('./database');
+const CREDENTIALS_FILE = path.join(__dirname, '..', '..', 'credentials.json');
+
+jest.mock('fs/promises', () => ({
+  readFile: jest.fn(),
+}));
 
 describe('POST /verify', () => {
-  let mockDb: any;
-
   beforeEach(() => {
     // Reset mocks before each test
-    mockDb = {
-      get: jest.fn(),
-      close: jest.fn(),
-    };
-    (openDb as jest.Mock).mockResolvedValue(mockDb);
+    (fs.readFile as jest.Mock).mockClear();
   });
 
   it('should verify an existing credential', async () => {
-    const dbResult = { workerId: 'worker-test', issuedAt: new Date().toISOString() };
-    mockDb.get.mockResolvedValue(dbResult);
+    const issuedAt = new Date().toISOString();
+    const existingCredential = { id: '123', credential: JSON.stringify({ id: '123' }), workerId: 'worker-test', issuedAt };
+    (fs.readFile as jest.Mock).mockResolvedValueOnce(JSON.stringify([existingCredential]));
 
     const credential = { id: '123', data: 'test' };
     const res = await request(app).post('/verify').send({ credential });
 
     expect(res.statusCode).toEqual(200);
-    expect(res.body).toEqual(dbResult);
-    expect(mockDb.get).toHaveBeenCalledWith('SELECT workerId, issuedAt FROM credentials WHERE id = ?', '123');
+    expect(res.body).toEqual({
+      workerId: 'worker-test',
+      issuedAt: issuedAt,
+    });
+    expect(fs.readFile).toHaveBeenCalledWith(CREDENTIALS_FILE, 'utf-8');
   });
 
   it('should not verify a non-existent credential', async () => {
-    mockDb.get.mockResolvedValue(undefined);
+    (fs.readFile as jest.Mock).mockResolvedValueOnce('[]'); // No existing credentials
 
     const credential = { id: '456', data: 'test' };
     const res = await request(app).post('/verify').send({ credential });
 
     expect(res.statusCode).toEqual(404);
     expect(res.body.message).toEqual('Credential not found.');
-    expect(mockDb.get).toHaveBeenCalledWith('SELECT workerId, issuedAt FROM credentials WHERE id = ?', '456');
+    expect(fs.readFile).toHaveBeenCalledWith(CREDENTIALS_FILE, 'utf-8');
   });
 
   it('should return 400 for invalid credential format', async () => {
@@ -45,16 +47,30 @@ describe('POST /verify', () => {
 
     expect(res.statusCode).toEqual(400);
     expect(res.body.message).toContain('Invalid credential format');
+    expect(fs.readFile).not.toHaveBeenCalled();
   });
 
-  it('should handle database errors', async () => {
-    const errorMessage = 'Database error';
-    mockDb.get.mockRejectedValue(new Error(errorMessage));
+  it('should handle file read errors', async () => {
+    (fs.readFile as jest.Mock).mockRejectedValueOnce(new Error('File read error'));
 
     const credential = { id: '123', data: 'test' };
     const res = await request(app).post('/verify').send({ credential });
 
     expect(res.statusCode).toEqual(500);
     expect(res.body.message).toEqual('Internal server error');
+    expect(fs.readFile).toHaveBeenCalledWith(CREDENTIALS_FILE, 'utf-8');
+  });
+
+  it('should handle file not found (ENOENT) by returning empty array', async () => {
+    const error = new Error('File not found') as any;
+    error.code = 'ENOENT';
+    (fs.readFile as jest.Mock).mockRejectedValueOnce(error);
+
+    const credential = { id: '123', data: 'test' };
+    const res = await request(app).post('/verify').send({ credential });
+
+    expect(res.statusCode).toEqual(404);
+    expect(res.body.message).toEqual('Credential not found.');
+    expect(fs.readFile).toHaveBeenCalledWith(CREDENTIALS_FILE, 'utf-8');
   });
 });

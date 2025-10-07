@@ -20,7 +20,7 @@ All services are containerized using Docker.
 
 ### Tech Stack
 
--   **Backend:** Node.js, Express, TypeScript, SQLite
+-   **Backend:** Node.js, Express, TypeScript, File System (JSON persistence)
 -   **Frontend:** React, TypeScript, Material-UI, Axios
 -   **Testing:** Jest, Supertest, React Testing Library
 -   **Containerization:** Docker
@@ -33,9 +33,9 @@ A monorepo structure (using npm workspaces) was chosen to simplify development a
 
 ### Persistence Layer
 
-The assignment requires each service to have its own persistence layer. To satisfy this while keeping the system simple, both the Issuance and Verification services point to the same **SQLite database file** (`credential.db`).
+Both the Issuance and Verification services use a shared **JSON file (`credentials.json`)** for persistence. This file stores all issued credentials as an array of JSON objects.
 
--   **Reasoning:** This approach avoids the complexity of setting up a network-based data synchronization mechanism (like a message bus or API-to-API calls) between the services, which would be overkill for this assignment's scope. While not a purely isolated persistence model, it represents a pragmatic solution where each service is still independently responsible for its own database logic and queries. In a production environment, this single file would be replaced by a dedicated database server (e.g., PostgreSQL, MySQL), and the services would connect to it with their own credentials and permissions.
+-   **Reasoning:** This approach directly addresses the requirement for a "simple free-tier DB" and the user's request to use "pure JSON". It avoids external database dependencies, making local setup very straightforward. In a production environment, especially with multiple instances of the services, this shared file would need to be stored on a shared, persistent volume (e.g., a Kubernetes Persistent Volume or a cloud file storage service) to ensure data consistency and availability across all service replicas. For this assignment, it demonstrates a simple, file-based persistence mechanism.
 
 ### API Design
 
@@ -84,9 +84,11 @@ The project is organized into a `packages` directory, with each service in its o
     ```bash
     npm install
     ```
-    This will install dependencies for all services, including the root workspace.
 
-2.  **Run the Services:**
+2.  **Ensure `credentials.json` exists:**
+    A `credentials.json` file should exist in the project root. If it doesn't, create an empty one with `[]` as its content.
+
+3.  **Run the Services:**
     You can run each service in a separate terminal.
 
     -   **Terminal 1: Start the Issuance API**

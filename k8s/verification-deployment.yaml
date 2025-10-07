@@ -19,5 +19,11 @@ spec:
         image: your-docker-hub-username/verification-api:latest # Replace with your actual image path
         ports:
         - containerPort: 5000
-        # Note: In a real-world scenario, you would need a PersistentVolume
-        # to share the SQLite database across pods.
+        volumeMounts:
+        - name: credentials-storage
+          mountPath: /usr/src/app/credentials.json
+          subPath: credentials.json # Mount only the file, not the directory
+      volumes:
+      - name: credentials-storage
+        persistentVolumeClaim:
+          claimName: credentials-pvc
