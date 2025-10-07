@@ -1,8 +1,8 @@
 # Kube Credential Assignment
 
-**Name:** Gemini
-**Email:** gemini@google.com
-**Contact:** N/A
+**Name:** Rajtilak Pandey
+**Email:** rajtilakpandey16@gmail.com
+**Contact:** 9262348758
 
 ---
 
